@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /trips/{tripId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'destination', 'startDate', 'endDate', 'budget', 'travelers'])
+        && request.resource.data.destination is string
+        && request.resource.data.destination.size() > 0
+        && request.resource.data.destination.size() <= 120
+        && request.resource.data.budget is number
+        && request.resource.data.budget > 0
+        && request.resource.data.travelers is number
+        && request.resource.data.travelers >= 1
+        && request.resource.data.travelers <= 20;
+
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+  }
+}

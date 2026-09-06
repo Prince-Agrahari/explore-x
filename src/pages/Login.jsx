@@ -1,9 +1,13 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, db } from '../firebase/config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { FaGoogle, FaEnvelope, FaLock } from 'react-icons/fa';
+import { FaEnvelope, FaLock } from 'react-icons/fa';
+import { Alert, Button, Field } from '../components/ui';
+import SafeImage from '../components/SafeImage';
+import { AUTH_PANEL_IMAGE } from '../utils/destinationImages';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,20 +15,18 @@ const Login = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const nextPath = location.state?.from?.pathname || '/dashboard';
+  usePageTitle('Log in');
 
-  // Check for redirect result on component mount
-  useState(() => {
+  useEffect(() => {
     const checkRedirectResult = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
-          // User successfully signed in after redirect
           const user = result.user;
-          
-          // Check if user document already exists in Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          
-          // If the user document doesn't exist, create it
+
           if (!userDoc.exists()) {
             await setDoc(doc(db, 'users', user.uid), {
               displayName: user.displayName,
@@ -33,17 +35,17 @@ const Login = () => {
               trips: []
             });
           }
-          
-          navigate('/dashboard');
+
+          navigate(nextPath, { replace: true });
         }
       } catch (err) {
         console.error('Redirect result error:', err);
-        setError(`Authentication error: ${err.message}`);
+        setError('Unable to finish signing in. Please try again.');
       }
     };
-    
+
     checkRedirectResult();
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -52,7 +54,7 @@ const Login = () => {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard');
+      navigate(nextPath, { replace: true });
     } catch (err) {
       console.error('Login error:', err);
       switch (err.code) {
@@ -66,7 +68,7 @@ const Login = () => {
           setError('Incorrect password. Please try again.');
           break;
         default:
-          setError(`Failed to log in: ${err.message}`);
+          setError('Unable to log in. Check your details and try again.');
       }
       setLoading(false);
     }
@@ -77,21 +79,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Configure Google provider with prompt parameter
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account'
       });
-      
+
       try {
-        // First try with popup
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        
-        // Check if user document already exists in Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
-        // If the user document doesn't exist, create it
+
         if (!userDoc.exists()) {
           await setDoc(doc(db, 'users', user.uid), {
             displayName: user.displayName,
@@ -100,109 +97,97 @@ const Login = () => {
             trips: []
           });
         }
-        
-        navigate('/dashboard');
+
+        navigate(nextPath, { replace: true });
       } catch (popupError) {
         console.error('Popup error:', popupError);
-        
-        // If popup is blocked, try redirect method instead
+
         if (popupError.code === 'auth/popup-blocked') {
           setError('Popup was blocked. Redirecting to Google sign-in page...');
-          
-          // Wait a moment before redirecting to allow the error message to be seen
           setTimeout(() => {
             signInWithRedirect(auth, provider);
           }, 1500);
         } else {
-          throw popupError; // Re-throw if it's not a popup blocked error
+          throw popupError;
         }
       }
     } catch (err) {
       console.error('Google login error:', err);
-      setError(`Failed to sign in with Google: ${err.message}`);
+      setError('Unable to sign in with Google. Please try again.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Login</h2>
-      
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+    <div className="grid min-h-[calc(100vh-8rem)] lg:grid-cols-2">
+      <div className="relative hidden lg:block">
+        <SafeImage src={AUTH_PANEL_IMAGE} alt="Kashmir valley" priority className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-ink/45" />
+        <div className="absolute bottom-12 left-10 right-10 text-white">
+          <p className="font-display text-4xl">Pick up the trip you already started thinking about.</p>
         </div>
-      )}
-      
-      <form onSubmit={handleEmailLogin} className="space-y-6">
-        <div>
-          <label htmlFor="email" className="block text-gray-700 mb-2">Email</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FaEnvelope className="text-gray-400" />
+      </div>
+
+      <div className="flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">Welcome back</p>
+          <h1 className="mt-3 font-display text-4xl text-ink">Log in to Explore X</h1>
+          <p className="mt-3 text-muted">Open your saved itineraries or plan the next one.</p>
+
+          {error && (
+            <div className="mt-6">
+              <Alert>{error}</Alert>
             </div>
-            <input
+          )}
+
+          <form onSubmit={handleEmailLogin} className="mt-8 space-y-5">
+            <Field
               id="email"
+              label="Email"
               type="email"
+              icon={FaEnvelope}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="password" className="block text-gray-700 mb-2">Password</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FaLock className="text-gray-400" />
-            </div>
-            <input
+            <Field
               id="password"
+              label="Password"
               type="password"
+              icon={FaLock}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? 'Logging in...' : 'Log in'}
+            </Button>
+          </form>
+
+          <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-[0.14em] text-muted">
+            <span className="h-px flex-1 bg-line" />
+            or
+            <span className="h-px flex-1 bg-line" />
           </div>
+
+          <Button variant="secondary" onClick={handleGoogleLogin} disabled={loading} className="w-full">
+            Continue with Google
+          </Button>
+
+          <p className="mt-8 text-sm text-muted">
+            Don’t have an account?{' '}
+            <Link to="/signup" className="font-medium text-accent hover:text-accent-dark">
+              Sign up
+            </Link>
+          </p>
         </div>
-        
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-75"
-        >
-          {loading ? 'Logging in...' : 'Log in'}
-        </button>
-      </form>
-      
-      <div className="my-4 flex items-center justify-between">
-        <span className="border-b w-1/5 md:w-1/4"></span>
-        <span className="text-xs text-gray-500 uppercase">or login with</span>
-        <span className="border-b w-1/5 md:w-1/4"></span>
       </div>
-      
-      <button
-        onClick={handleGoogleLogin}
-        disabled={loading}
-        className="w-full flex justify-center items-center bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-75"
-      >
-        <FaGoogle className="text-red-500 mr-2" />
-        Continue with Google
-      </button>
-      
-      <p className="mt-8 text-sm text-center text-gray-600">
-        Don't have an account?{' '}
-        <Link to="/signup" className="text-blue-600 hover:underline">
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 };
 
-export default Login; 
+export default Login;

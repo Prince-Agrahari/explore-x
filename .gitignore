@@ -11,6 +11,23 @@ node_modules
 dist
 dist-ssr
 *.local
+EXPLORE-X/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+functions/.env
+functions/.secret.local
+functions/.env.*
+!functions/.env.example
+
+# Firebase emulator / debug
+.firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
 
 # Editor directories and files
 .vscode/*

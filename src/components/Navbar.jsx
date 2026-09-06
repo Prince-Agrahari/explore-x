@@ -1,138 +1,172 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { FaPlane, FaUserCircle, FaBars, FaTimes } from 'react-icons/fa';
+import { FaBars, FaTimes } from 'react-icons/fa';
+import { Button } from './ui';
+import { cn } from '../utils/cn';
 
 const Navbar = ({ user }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+        setProfileOpen(false);
+      }
+    };
+    const onPointerDown = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setIsMenuOpen(false);
+      setProfileOpen(false);
       navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
   };
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const linkClass = ({ isActive }) =>
+    cn(
+      'rounded-md px-3 py-2 text-sm transition-colors',
+      isActive ? 'text-ink' : 'text-muted hover:text-ink'
+    );
 
   return (
-    <nav className="bg-blue-600 shadow-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center py-4">
-          {/* Logo and App Name */}
-          <Link to="/" className="flex items-center space-x-2">
-            <FaPlane className="text-white text-2xl" />
-            <span className="text-white font-bold text-xl">AI Travel Planner</span>
-          </Link>
+    <header className="sticky top-0 z-40 border-b border-line bg-canvas/95 backdrop-blur-sm">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:bg-surface focus:px-3 focus:py-2">
+        Skip to content
+      </a>
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6" aria-label="Primary">
+        <Link to="/" className="flex items-center gap-2.5 text-ink">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ink text-sm font-medium text-canvas" aria-hidden="true">
+            X
+          </span>
+          <span className="font-display text-xl tracking-tight">Explore X</span>
+        </Link>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <button
-              onClick={toggleMenu}
-              className="text-white focus:outline-none"
-            >
-              {isMenuOpen ? (
-                <FaTimes className="h-6 w-6" />
-              ) : (
-                <FaBars className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Link to="/" className="text-white hover:text-blue-200 px-3 py-2 rounded-md">
-              Home
-            </Link>
-            
-            {user ? (
-              <>
-                <Link to="/dashboard" className="text-white hover:text-blue-200 px-3 py-2 rounded-md">
-                  My Trips
-                </Link>
-                <Link to="/create-trip" className="bg-white text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-md font-medium">
-                  Plan New Trip
-                </Link>
-                <div className="relative group">
-                  <button className="flex items-center text-white hover:text-blue-200 px-3 py-2 rounded-md">
-                    <FaUserCircle className="mr-2" />
-                    {user.displayName || 'Profile'}
-                  </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
-                    <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                      My Profile
+        <div className="hidden items-center gap-1 md:flex">
+          <NavLink to="/" className={linkClass} end>
+            Home
+          </NavLink>
+          {user ? (
+            <>
+              <NavLink to="/dashboard" className={linkClass}>
+                My trips
+              </NavLink>
+              <Button to="/create-trip" size="sm" className="ml-3">
+                Plan new trip
+              </Button>
+              <div className="relative ml-2" ref={profileRef}>
+                <button
+                  type="button"
+                  aria-expanded={profileOpen}
+                  aria-haspopup="menu"
+                  aria-controls="profile-menu"
+                  onClick={() => setProfileOpen((open) => !open)}
+                  className="rounded-md px-3 py-2 text-sm text-ink hover:bg-sand"
+                >
+                  {user.displayName || 'Profile'}
+                </button>
+                {profileOpen && (
+                  <div id="profile-menu" className="absolute right-0 mt-2 w-44 rounded-lg border border-line bg-surface py-1 shadow-card" role="menu">
+                    <Link
+                      to="/profile"
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                      className="block px-3 py-2 text-sm text-ink hover:bg-sand"
+                    >
+                      Profile
                     </Link>
-                    <button 
+                    <button
+                      type="button"
+                      role="menuitem"
                       onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
+                      className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-sand"
                     >
                       Sign out
                     </button>
                   </div>
-                </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <NavLink to="/login" className={linkClass}>
+                Log in
+              </NavLink>
+              <Button to="/signup" size="sm" className="ml-3">
+                Sign up
+              </Button>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="rounded-md p-2 text-ink md:hidden"
+          aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-menu"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          {isMenuOpen ? <FaTimes className="h-5 w-5" aria-hidden="true" /> : <FaBars className="h-5 w-5" aria-hidden="true" />}
+        </button>
+      </nav>
+
+      {isMenuOpen && (
+        <div id="mobile-menu" className="border-t border-line px-4 py-4 md:hidden">
+          <div className="flex flex-col gap-1">
+            <Link to="/" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
+              Home
+            </Link>
+            {user ? (
+              <>
+                <Link to="/dashboard" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
+                  My trips
+                </Link>
+                <Link to="/create-trip" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
+                  Plan new trip
+                </Link>
+                <Link to="/profile" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
+                  Profile
+                </Link>
+                <button type="button" onClick={handleLogout} className="rounded-md px-2 py-2 text-left text-ink hover:bg-sand">
+                  Sign out
+                </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-white hover:text-blue-200 px-3 py-2 rounded-md">
+                <Link to="/login" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
                   Log in
                 </Link>
-                <Link to="/signup" className="bg-white text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-md font-medium">
+                <Link to="/signup" className="rounded-md px-2 py-2 text-ink hover:bg-sand" onClick={() => setIsMenuOpen(false)}>
                   Sign up
                 </Link>
               </>
             )}
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-blue-500">
-            <Link to="/" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-              Home
-            </Link>
-            
-            {user ? (
-              <>
-                <Link to="/dashboard" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-                  My Trips
-                </Link>
-                <Link to="/create-trip" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-                  Plan New Trip
-                </Link>
-                <Link to="/profile" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-                  My Profile
-                </Link>
-                <button 
-                  onClick={() => {
-                    handleLogout();
-                    toggleMenu();
-                  }}
-                  className="block w-full text-left text-white hover:bg-blue-700 px-3 py-2 rounded-md"
-                >
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-                  Log in
-                </Link>
-                <Link to="/signup" className="block text-white hover:bg-blue-700 px-3 py-2 rounded-md" onClick={toggleMenu}>
-                  Sign up
-                </Link>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </nav>
+      )}
+    </header>
   );
 };
 
-export default Navbar; 
+export default Navbar;

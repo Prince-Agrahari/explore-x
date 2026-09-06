@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,19 +12,19 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize services
 const auth = getAuth(app);
 
-// Set auth persistence to local (survives browser restarts)
 setPersistence(auth, browserLocalPersistence)
   .catch((error) => {
-    console.error("Auth persistence error:", error);
+    console.error('Auth persistence error:', error);
   });
 
 const db = getFirestore(app);
-const storage = getStorage(app);
+const functions = getFunctions(app, 'us-central1');
 
-export { auth, db, storage }; 
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FUNCTIONS_EMULATOR === 'true') {
+  connectFunctionsEmulator(functions, 'localhost', 5001);
+}
+
+export { auth, db, functions };

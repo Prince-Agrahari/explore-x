@@ -1,72 +1,90 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { httpsCallable } from 'firebase/functions';
+import { auth, functions } from '../firebase/config';
+import { isValidItinerary } from './itinerary';
 
-// Initialize the Generative AI API with your API key
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+const generateItineraryFn = httpsCallable(functions, 'generateItinerary', { timeout: 120000 });
 
-// Function to generate a travel itinerary using Gemini AI
+const functionMessage = (error) => {
+  const code = error?.code || '';
+  const text = String(error?.message || '');
+  if (code === 'functions/unauthenticated') {
+    return 'You must be logged in to create a trip.';
+  }
+  if (code === 'functions/invalid-argument') {
+    return error.message || 'Please check your trip details and try again.';
+  }
+  if (code === 'functions/failed-precondition') {
+    return error.message || 'Itinerary generation is not configured. Add a valid GEMINI_API_KEY to functions/.env and restart the dev server.';
+  }
+  if (code === 'functions/resource-exhausted') {
+    return 'Gemini is at its quota limit. Please try again shortly.';
+  }
+  if (code === 'functions/unavailable') {
+    return 'Gemini is temporarily unavailable. Please try again.';
+  }
+  if (
+    code === 'functions/internal'
+    || /cors|failed to fetch|network|err_failed|preflight/i.test(text)
+  ) {
+    return 'Explore X could not reach the itinerary service. If you are on localhost, refresh and try again.';
+  }
+  return 'Failed to generate itinerary. Please try again later.';
+};
+
+const payload = (tripData) => ({
+  destination: tripData.destination,
+  startDate: tripData.startDate,
+  endDate: tripData.endDate,
+  budget: Number(tripData.budget),
+  travelers: Number(tripData.travelers),
+  interests: tripData.interests,
+  accommodationType: tripData.accommodationType,
+  transportationType: tripData.transportationType,
+  notes: tripData.notes || '',
+});
+
+const generateViaLocalApi = async (tripData) => {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) {
+    throw new Error('You must be logged in to create a trip.');
+  }
+
+  const response = await fetch('/api/generate-itinerary', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload(tripData)),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to generate itinerary. Please try again later.');
+  }
+  return data.itinerary;
+};
+
+const generateViaCallable = async (tripData) => {
+  const result = await generateItineraryFn(payload(tripData));
+  return result?.data?.itinerary;
+};
+
 export const generateItinerary = async (tripData) => {
   try {
-    // Access the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const itinerary = import.meta.env.DEV
+      ? await generateViaLocalApi(tripData)
+      : await generateViaCallable(tripData);
 
-    // Structure the prompt with the user's travel preferences
-    const prompt = `
-      Create a detailed travel itinerary for the following trip:
-      
-      Destination: ${tripData.destination}
-      Start Date: ${tripData.startDate}
-      End Date: ${tripData.endDate}
-      Budget: $${tripData.budget}
-      Number of travelers: ${tripData.travelers}
-      Interests: ${tripData.interests.join(', ')}
-      Accommodation preference: ${tripData.accommodationType || 'Any'}
-      Transportation preference: ${tripData.transportationType || 'Any'}
-      
-      Please include:
-      1. Day-by-day schedule with morning, afternoon, and evening activities
-      2. Recommended attractions that match the interests
-      3. Dining recommendations within the budget
-      4. Estimated costs for activities and meals
-      5. Transportation options between locations
-      6. Accommodation suggestions
-      7. Tips specific to the destination
-      
-      Format the response as a structured JSON object with the following structure:
-      {
-        "days": [
-          {
-            "date": "YYYY-MM-DD",
-            "dayNumber": 1,
-            "morning": { "activity": "", "description": "", "estimatedCost": 0 },
-            "afternoon": { "activity": "", "description": "", "estimatedCost": 0 },
-            "evening": { "activity": "", "description": "", "estimatedCost": 0 },
-            "accommodation": { "name": "", "description": "", "estimatedCost": 0 }
-          }
-        ],
-        "totalEstimatedCost": 0,
-        "generalTips": [""],
-        "accommodationSuggestions": [""],
-        "transportationOptions": [""]
-      }
-    `;
-
-    // Generate content
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    // Parse the JSON response
-    try {
-      // Find JSON in the response using regex (in case there's additional text)
-      const jsonMatch = text.match(/(\{[\s\S]*\})/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : text;
-      return JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError);
-      throw new Error("Failed to parse the AI-generated itinerary. Please try again.");
+    if (!isValidItinerary(itinerary)) {
+      throw new Error('The generated itinerary was not valid. Please try again.');
     }
+
+    return itinerary;
   } catch (error) {
-    console.error("Error generating itinerary:", error);
-    throw new Error("Failed to generate itinerary. Please try again later.");
+    if (error?.message && /itinerary|logged in|trip details|configured|quota|unavailable|localhost|api key|revoked|aistudio|gemini/i.test(error.message)) {
+      throw error;
+    }
+    throw new Error(functionMessage(error));
   }
-}; 
+};
