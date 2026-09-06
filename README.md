@@ -1,90 +1,200 @@
 # Explore X
 
-AI travel planner: a signed-in user describes a trip, Gemini writes a day-by-day itinerary, and Firestore stores it.
+Plan Smarter. Travel Better. Explore More. ✈️
 
-## Local development
+Explore X is an AI-powered travel planner built for Indian travelers. It turns your destination, dates, budget, interests, accommodation, and transportation preferences into a personalized day-by-day itinerary using Google Gemini.
 
-```bash
+**Live demo:** [explore-x-chi.vercel.app](https://explore-x-chi.vercel.app/)
+
+**Repository:** [github.com/Prince-Agrahari/explore-x](https://github.com/Prince-Agrahari/explore-x)
+
+## Preview
+
+<img width="2560" height="1332" alt="image" src="https://github.com/user-attachments/assets/76b74905-0c06-46af-9993-4e0e1a28ca71" />
+<img width="2526" height="1330" alt="image" src="https://github.com/user-attachments/assets/6e1435c8-2dab-4034-a963-07696477367c" />
+<img width="2506" height="1334" alt="image" src="https://github.com/user-attachments/assets/264cfa04-1631-4676-9b5f-364933dc66a8" />
+<img width="2528" height="1600" alt="image" src="https://github.com/user-attachments/assets/cd74dbb5-190a-4b63-b0fa-3f4fddae62b3" />
+<img width="2526" height="1600" alt="image" src="https://github.com/user-attachments/assets/00a2d047-19da-47b5-af77-fa1cd0856319" />
+
+
+## Implemented
+
+### Frontend (React + Vite + Tailwind CSS)
+
+- AI-powered travel planning interface
+- Landing page with hero, how it works, sample itinerary, destinations, and CTA sections
+- Email/password and Google authentication
+- 3-step trip creation wizard
+- Destination and travel date selection
+- INR-based budget planning
+- Traveler count and interest selection
+- Accommodation and transportation preferences
+- Optional trip notes
+- AI-generated day-by-day itinerary
+- Trip dashboard with saved trips
+- Trip details and itinerary view
+- Edit and regenerate existing trips
+- Delete trips
+- Download itinerary as `.txt`
+- Responsive design for desktop, tablet, and mobile
+- Local Indian destination imagery with safe image handling
+
+### AI & Backend (Firebase Cloud Functions + Gemini)
+
+- Firebase Cloud Functions v2
+- Secure server-side Gemini integration
+- Google Gemini via `@google/genai`
+- Structured JSON itinerary generation
+- Response schema validation
+- INR-based estimated activity and trip costs
+- Authentication-aware itinerary generation
+- Firebase callable `generateItinerary` function
+- Local development API through Vite plugin
+- Secure Gemini API key management through Firebase Functions secrets
+
+### Database & Authentication
+
+- Firebase Authentication
+- Email/password authentication
+- Google Sign-In
+- Firebase Firestore
+- User-specific trip storage
+- Owner-based Firestore security rules
+- Authenticated trip access
+
+## How It Works
+
+```text
+User Preferences
+      ↓
+Trip Wizard
+      ↓
+Explore X Backend
+      ↓
+Google Gemini
+      ↓
+Structured Itinerary
+      ↓
+Firebase Firestore
+      ↓
+Saved Trip
+Tech Stack
+Layer	Technologies
+Frontend	React 19, Vite 6, React Router 7, Tailwind CSS 4
+UI	React Icons, Newsreader, Outfit
+Backend	Firebase Cloud Functions v2, Node.js 22
+AI	Google Gemini, @google/genai
+Database	Firebase Firestore
+Authentication	Firebase Authentication
+Deploy	Vercel, Firebase
+Project Structure
+src/
+├── components/          # Reusable UI components
+├── pages/               # Application pages and routes
+├── firebase/            # Firebase configuration
+└── utils/               # AI, itinerary, currency and trip utilities
+
+functions/
+├── index.js             # Cloud Functions entry point
+├── gemini.js            # Gemini integration
+├── itinerary.js         # Itinerary validation
+└── secrets.js           # Server-side secrets
+
+public/
+└── images/
+    └── travel/          # Local destination imagery
+
+firestore.rules          # Firestore security rules
+firebase.json            # Firebase configuration
+vite-plugin-itinerary.js # Local itinerary API
+Getting Started
+Prerequisites
+Node.js 22+
+Firebase project
+Firebase CLI
+Google Gemini API key
+Install
 npm install
-cd functions && npm install && cd ..
-```
 
-Copy the example env files. Do not commit real values.
+cd functions
+npm install
+cd ..
+Environment
 
-```bash
-copy .env.example .env
-copy functions\.env.example functions\.env
-```
+Create .env in the project root:
 
-Fill:
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
 
-- `.env` with Firebase **web** config (`VITE_FIREBASE_*`)
-- `functions/.env` with the server Gemini key (`GEMINI_API_KEY`)
+Create functions/.env:
 
-Start the app (Vite also serves the local itinerary API):
+GEMINI_API_KEY=
 
-```bash
+Never commit .env or functions/.env.
+
+Run
 npm run dev
-```
 
-Open http://localhost:5173/
+Frontend runs on:
 
-Optional Functions emulator:
+http://localhost:5173
+Build
+npm run build
+Firebase Setup
 
-```bash
-npm run emulators
-```
+Enable the following authentication providers in Firebase:
 
-Set `VITE_USE_FUNCTIONS_EMULATOR=true` in `.env` only while that emulator is running.
+Email/Password
+Google
 
-## Environment variables
+Add the required authorized domains for local development and the deployed Vercel application.
 
-### Frontend (Vite / Vercel)
+Deployment
+Frontend
 
-| Variable | Purpose |
-|---|---|
-| `VITE_FIREBASE_API_KEY` | Firebase web API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Auth domain |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase project id |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Storage bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Messaging sender id |
-| `VITE_FIREBASE_APP_ID` | Firebase app id |
+Deploy the Vite application to Vercel and configure the VITE_FIREBASE_* environment variables.
 
-These are public client identifiers. Restrict them in Google Cloud if needed.
+Firebase Functions
 
-### Backend (Firebase Cloud Functions)
+Configure the Gemini secret:
 
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | Server-only Gemini key |
-
-Never prefix the Gemini key with `VITE_`. Never put it in React, HTML, or frontend hosting settings.
-
-- Local: `functions/.env` (gitignored)
-- Production: `firebase functions:secrets:set GEMINI_API_KEY`
-
-`.env` is local only. `.env.example` and `functions/.env.example` are safe to commit.
-
-## How itinerary generation works
-
-- **Development:** the signed-in client posts to `/api/generate-itinerary`. The Vite plugin reads `GEMINI_API_KEY` from `functions/.env` and calls Gemini.
-- **Production:** the client calls the Firebase callable `generateItinerary`. The function reads the `GEMINI_API_KEY` secret.
-
-## Production deployment
-
-1. Add the `VITE_FIREBASE_*` variables in the frontend host (this repo uses Vercel).
-2. Build and deploy the frontend (`npm run build`, then Vercel or `firebase deploy --only hosting`).
-3. Set the Gemini secret and deploy functions:
-
-```bash
 firebase functions:secrets:set GEMINI_API_KEY
+
+Deploy:
+
 firebase deploy --only functions
-```
 
-4. Deploy Firestore rules if they changed:
+If Firestore rules are updated:
 
-```bash
 firebase deploy --only firestore
-```
+Roadmap / Future
+AI travel assistant for conversations about an existing trip
+Smart activity replacement using Gemini
+Advanced INR budget breakdown and optimization
+AI-powered trip optimization
+Interactive trip maps
+Weather-aware itinerary planning
+AI-generated packing lists
+Professional PDF itinerary export
+Shareable trip links
+Collaborative trip planning
+Design
+Canvas: Cream
+Text: Charcoal
+Accent: Terracotta
+Display Font: Newsreader
+UI Font: Outfit
+Currency: INR (₹)
+Security
+Gemini API key is server-side only
+No VITE_GEMINI_* variables
+Firebase Authentication protects user accounts
+Firestore rules enforce trip ownership
+API credentials are never committed to the repository
+License
 
-Do not deploy `.env` or `functions/.env`.
+Apache License 2.0
