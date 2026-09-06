@@ -31,6 +31,7 @@ exports.generateItinerary = onCall(
       /127\.0\.0\.1(:\d+)?$/,
       /\.web\.app$/,
       /\.firebaseapp\.com$/,
+      /\.vercel\.app$/,
     ],
     timeoutSeconds: 120,
     memory: '512MiB',
