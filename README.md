@@ -195,6 +195,6 @@ No VITE_GEMINI_* variables
 Firebase Authentication protects user accounts
 Firestore rules enforce trip ownership
 API credentials are never committed to the repository
-License
 
+License
 Apache License 2.0
